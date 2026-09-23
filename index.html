@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BEL Urban Intelligence Platform</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+
+        #map {
+            flex-grow: 1;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Sidebar Control Panel */
+        #sidebar {
+            width: 340px;
+            background: #1e293b;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 10;
+            box-shadow: 4px 0 15px rgba(0, 0, 0, 0.3);
+            border-right: 1px solid #334155;
+        }
+
+        .header h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #38bdf8;
+            margin-bottom: 4px;
+        }
+
+        .header p {
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.825rem;
+            font-weight: 600;
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            width: fit-content;
+        }
+
+        .status-badge.online {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .stat-card {
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+
+        .stat-card .label {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card .value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-top: 4px;
+        }
+
+        /* Legend */
+        .legend {
+            background: #0f172a;
+            padding: 14px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+
+        .legend h4 {
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            margin-bottom: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+
+        .legend-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        /* Popup Customization */
+        .leaflet-popup-content-wrapper {
+            background: #1e293b;
+            color: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+
+        .leaflet-popup-tip {
+            background: #1e293b;
+        }
+
+        .popup-title {
+            font-weight: 700;
+            color: #38bdf8;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .popup-detail {
+            font-size: 0.825rem;
+            color: #cbd5e1;
+            margin-bottom: 3px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <div class="header">
+            <h2>SIH26124 Fleet Intel</h2>
+            <p>Public Transport Fleet Surveillance Dashboard</p>
+        </div>
+
+        <div id="status-pill" class="status-badge">
+            <span class="status-dot"></span>
+            <span id="status-text">Connecting to API...</span>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="label">Total Events</div>
+                <div id="total-count" class="value">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Active Buses</div>
+                <div id="bus-count" class="value">0</div>
+            </div>
+        </div>
+
+        <div class="legend">
+            <h4>Incident Type Legend</h4>
+            <div class="legend-item">
+                <span class="color-dot" style="background: #ef4444;"></span> Potholes & Road Damage
+            </div>
+            <div class="legend-item">
+                <span class="color-dot" style="background: #a855f7;"></span> Illegal Garbage Dumping
+            </div>
+            <div class="legend-item">
+                <span class="color-dot" style="background: #3b82f6;"></span> Fleet Buses / Traffic
+            </div>
+            <div class="legend-item">
+                <span class="color-dot" style="background: #f59e0b;"></span> Other Violations
+            </div>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // 1. Initialize Map centered on New Delhi
+        const map = L.map('map').setView([28.6139, 77.2090], 13);
+
+       // 2. Add Free Map Tile Layer (No API Key Required)
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(map);
+
+        // Track rendered markers to update cleanly
+        let markersGroup = L.layerGroup().addTo(map);
+        const API_URL = 'http://127.0.0.1:8000/api/detections';
+
+        // Helper to get color based on detection class name
+        function getColor(cls) {
+            switch(cls.toLowerCase()) {
+                case 'pothole': return '#ef4444';       // Red
+                case 'illegal_dumping': return '#a855f7';// Purple
+                case 'bus': return '#3b82f6';            // Blue
+                default: return '#f59e0b';               // Orange
+            }
+        }
+
+        // 3. Fetch detections from Anshika's API
+        async function fetchDetections() {
+            const statusPill = document.getElementById('status-pill');
+            const statusText = document.getElementById('status-text');
+
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error("API Network response failed");
+                
+                const data = await response.json();
+
+                // Update Status Indicator
+                statusPill.className = 'status-badge online';
+                statusText.innerText = 'API Live (Synced)';
+
+                // Update Stats
+                document.getElementById('total-count').innerText = data.length;
+                const busDetections = data.filter(d => d.cls_name.toLowerCase() === 'bus').length;
+                document.getElementById('bus-count').innerText = busDetections;
+
+                // Clear old markers and redraw
+                markersGroup.clearLayers();
+
+                data.forEach(det => {
+                    const color = getColor(det.cls_name);
+
+                    // Create glowing circle marker
+                    const marker = L.circleMarker([det.lat, det.lng], {
+                        radius: 8,
+                        fillColor: color,
+                        color: '#ffffff',
+                        weight: 2,
+                        opacity: 0.9,
+                        fillOpacity: 0.85
+                    });
+
+                    // Add rich popup
+                    marker.bindPopup(`
+                        <div class="popup-title">${det.cls_name.replace('_', ' ')}</div>
+                        <div class="popup-detail"><b>Confidence:</b> ${(det.confidence * 100).toFixed(1)}%</div>
+                        <div class="popup-detail"><b>Tracker ID:</b> #${det.tracker_id}</div>
+                        <div class="popup-detail"><b>Lat/Lng:</b> ${det.lat.toFixed(4)}, ${det.lng.toFixed(4)}</div>
+                    `);
+
+                    markersGroup.addLayer(marker);
+                });
+
+            } catch (error) {
+                statusPill.className = 'status-badge';
+                statusText.innerText = 'Backend Offline';
+                console.error("Polling error:", error);
+            }
+        }
+        // Initial Load
+        fetchDetections();
+        // Auto-refresh map data every 3 seconds
+        setInterval(fetchDetections, 3000);
+    </script>
+</body>
+</html>
